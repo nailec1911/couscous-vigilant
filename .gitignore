@@ -1,3 +1,7 @@
+my_torch_generator
+my_torch_analyzer
+typer
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
