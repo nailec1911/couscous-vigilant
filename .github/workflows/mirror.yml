@@ -1,0 +1,28 @@
+name: Mirror Repository
+
+on:
+  push:                  # Trigger on every push
+    branches:
+      - '**'             # Includes all branches
+  delete:                # Trigger on branch or tag deletion
+  create:                # Trigger on branch or tag creation
+  workflow_dispatch:     # Allows manual triggering of the workflow
+  pull_request:
+
+jobs:
+  mirror:
+    name: Push to mirror
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Mirror repository
+        uses: pixta-dev/repository-mirroring-action@v1
+        with:
+          target_repo_url: ${{ secrets.MIRROR_URL }}
+          ssh_private_key: ${{ secrets.GIT_SSH_PRIVATE_KEY }}
