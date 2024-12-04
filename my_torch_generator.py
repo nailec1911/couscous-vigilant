@@ -4,7 +4,7 @@ from sys import stderr
 from typing import Optional, List
 import typer
 from typing_extensions import Annotated
-from generator.generate import Config, generate
+from generator.generate import Config, generate_files
 
 
 def main_generator(config_file_1 : Annotated [str, typer.Argument(help="Configuration file containing description of a neural network we want to generate.")],
@@ -29,7 +29,7 @@ def main_generator(config_file_1 : Annotated [str, typer.Argument(help="Configur
             print(err.args[0], file=stderr)
         raise typer.Exit(84)
     for conf in configs:
-        generate(conf)
+        generate_files(conf)
 
 if __name__ == "__main__":
     typer.run(main_generator)
