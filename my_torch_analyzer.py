@@ -13,7 +13,7 @@ def main_generator(configs: List[str] = typer.Option(..., '', '', help="config f
     """
     for conf in configs:
         analyze("toto")
-#
+
 def main_typer():
     """main to call the cli handling
     """
@@ -22,7 +22,5 @@ def main_typer():
     except Exception as err:
         print(err.args[0])
         exit(84)
-#
-#
 if __name__ == "__main__":
     typer.run(main_typer)
