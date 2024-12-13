@@ -4,6 +4,8 @@ import argparse
 from sys import stderr
 from analyzer.predict import predict
 from analyzer.train import train
+from neural_network.neural_network import NeuralNetwork
+from pickle import load
 
 
 def parse_arguments():
@@ -32,14 +34,14 @@ def parse_arguments():
     parser.add_argument(
         "--save",
         metavar="SAVEFILE",
-        type=argparse.FileType("w"),
+        type=str,
         help="Save neural network into SAVEFILE. Only works in train mode.",
     )
 
     parser.add_argument(
         "LOADFILE",
         metavar="LOADFILE",
-        type=argparse.FileType("r"),
+        type=str,
         help="File containing an artificial neural network",
     )
     parser.add_argument(
@@ -65,17 +67,28 @@ def main_analyzer(args: argparse.Namespace) -> None:
     Args:
         args (argparse.Namespace): parsed args
     """
+
+    nn: NeuralNetwork = None
+    try:
+        with open(args.LOADFILE, 'rb') as file:
+            nn = load(file)
+    except Exception as err:
+        raise FileNotFoundError(
+            f"Neural network from file '{args.LOADFILE}' didn't load properly") from err
+
+    print(nn.layers)
+
     if args.predict:
-        predict()
-        return
+        predict(nn)
+        return 0
     if args.train:
-        train()
-        return
+        return train(nn, args.save)
 
 
 if __name__ == "__main__":
     try:
         args = parse_arguments()
-        print(type(args))
+        main_analyzer(args)
     except Exception as e:
         print(e, file=stderr)
+        exit(84)

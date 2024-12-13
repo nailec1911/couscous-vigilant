@@ -1,5 +1,6 @@
 """class to parse the config file
 """
+from sys import stderr
 from typing import List
 
 
@@ -21,16 +22,14 @@ class Conf_parameters:
         self.epoch: int = 0
         self.eta: float = 0
         content = ""
-        fd = None
         try:
-            fd = open(file, 'r', encoding='utf-8')
-            content = fd.read()
-            fd.close()
+            with open(file, 'r', encoding='utf-8') as file:
+                content = file.read()
         except Exception as exc:
             raise RuntimeError(f"Config file '{file}' failed to open") from exc
         parse_funcs: dict = {"layers": self.__parse_layers,
                              "epoch": self.__parse_epoch, "eta": self.__parse_eta}
-        print(content.split('\n'))
+
         for i, line in enumerate(content.split('\n')):
             line.strip()
             if line == '' or line[0] == '#':
@@ -42,7 +41,6 @@ class Conf_parameters:
                 parse_funcs[elts[0].strip()](elts[1].strip())
             except Exception as err:
                 raise ValueError(f"Error in {file}:\n\t{i}:{line}") from err
-        print(self.layers, self.epoch, self.eta)
 
 
 class Config:
@@ -56,9 +54,7 @@ class Config:
         if file[-5::] != '.conf':
             print("file name should end with .conf", file=stderr)
         else:
-            self.name = file[-4::]
-
-        print()
+            self.name = file[:-5]
 
         self.conf: Conf_parameters = None
         try:
@@ -66,10 +62,10 @@ class Config:
         except (RuntimeError, ValueError) as err:
             print(f"Parsing of {file} failed\n{err.args}", file=stderr)
             raise RuntimeError from err
-        print(f"{nb} neural networks will be generated with this configuration")
         self.nb: int = nb
         self.nn_names: list = []
-        print("Configuration properly loaded\n")
+        print("Configuration properly loaded")
+        print(f"{nb} neural networks will be generated with this configuration\n")
 
     def get_names(self) -> list[str]:
         """get the names of the files containing the resulting neural networks

@@ -2,6 +2,8 @@
 """
 from sys import stderr
 from generator.config_parsing import Config, Conf_parameters
+from neural_network.neural_network import NeuralNetwork
+from pickle import dump
 
 
 def generate_nn(filename: str, conf: Conf_parameters) -> None:
@@ -12,20 +14,12 @@ def generate_nn(filename: str, conf: Conf_parameters) -> None:
     """
     print(f"Generating {filename}")
 
-    file = None
+    nn = NeuralNetwork(conf.layers, conf.epoch, conf.eta)
     try:
-        file = open(filename, 'w', encoding='utf-8')
-    except Exception as err:
-        print(f"Opening of {filename} failed", file=stderr)
-        if len(err.args) > 1:
-            print('->', err.args[1])
-        raise RuntimeError
-
-    # TODO put code here
-
-    file.write(",dsmlfsdmf")  # TODO write the file
-    file.close()
-
+        with open(filename, 'wb') as file:
+            dump(nn, file)
+    except Exception:
+        print(f"Didn't manage to write NN in file {filename}", file=stderr)
     return
 
 
