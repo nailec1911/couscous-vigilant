@@ -7,8 +7,9 @@ class Board:
     """Class to parse and store a chess board from it's fen notation
     """
 
-    def __init__(self, fen: str):
+    def __init__(self, fen: str, training: bool = False):
         self.fen: str = fen
+        self.expected: str = ""
         self.pieces_list = ["p", "r", "n", "b",
                             "q", "k", "P", "R", "N", "B", "Q", "K"]
 
@@ -23,7 +24,7 @@ class Board:
         self.halfmove: int = 0
         self.fullmove: int = 0
 
-        self.__parse()
+        self.__parse(training)
 
     def __parse_infos(self, turn: str, rock: str, enpassant: str, halfmove: str, fullmove: str):
         if len(turn) != 0 and not turn in "wb":
@@ -60,13 +61,18 @@ class Board:
         # TODO check that the number of pieces is ok and that there aren't two pieces on the same line
         pass
 
-    def __parse(self):
+    def __parse(self, training: bool):
         splitted = self.fen.split(' ')
-        if len(splitted) != 6:
+        if len(splitted) < 6 or (training and len(splitted) < 7):
             raise ValueError("Not enought information")
         self.__parse_board(splitted[0])
-        self.__parse_infos(*splitted[1:])
+        self.__parse_infos(*splitted[1:6])
         self.__check_boards()
+        if training:
+            if len(splitted) == 7:
+                self.expected = splitted[6]
+            if len(splitted) == 8:
+                self.expected = splitted[6] + ' ' + splitted[7]
 
     def __repr__(self):
         res = ""
@@ -81,12 +87,14 @@ class Board:
 
 if __name__ == "__main__":
     boards = [
-        "rnb1kbnr/pppp1ppp/8/4p3/6Pq/5P2/PPPPP2P/RNBQKBNR w KQkq - 1 3",
-        "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
-        "rnbqkbnr/pppppppp/8/8/3P4/8/PPP1PPPP/RNBQKBNR b KQkq d3 0 1",
-        "rnbqkbnr/pppp2pp/8/4pp1Q/3P4/4P3/PPP2PPP/RNB1KBNR b KQkq - 1 3",
-        "8/8/8/8/8/8/8/k1K5 w - - 0 1",
+        "rnb1kbnr/pppp1ppp/8/4p3/6Pq/5P2/PPPPP2P/RNBQKBNR w KQkq - 1 3 nothing",
+        "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 stale",
+        "rnbqkbnr/pppppppp/8/8/3P4/8/PPP1PPPP/RNBQKBNR b KQkq d3 0 1 check white",
+        "rnbqkbnr/pppp2pp/8/4pp1Q/3P4/4P3/PPP2PPP/RNB1KBNR b KQkq - 1 3 nothing",
+        "8/8/8/8/8/8/8/k1K5 w - - 0 1 stalemate",
     ]
-    a = Board(boards[0])
-    # print(a.boards)
-    print(a)
+    for e in boards:
+        a = Board(e, True)
+        # print(a.boards)
+        # print(a)
+        print(a.expected)

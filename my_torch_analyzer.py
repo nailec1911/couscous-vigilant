@@ -2,10 +2,12 @@
 """main for analyzer"""
 import argparse
 from sys import stderr
+from typing import List
 from analyzer.predict import predict
 from analyzer.train import train
 from neural_network.neural_network import NeuralNetwork
 from pickle import load
+from analyzer.board_parsing import Board
 
 
 def parse_arguments():
@@ -47,7 +49,7 @@ def parse_arguments():
     parser.add_argument(
         "FILE",
         metavar="FILE",
-        type=argparse.FileType("r"),
+        type=str,
         help="File containing chessboards.",
     )
 
@@ -56,7 +58,7 @@ def parse_arguments():
     if args.save and not args.train:
         parser.error("--save can only be used with --train.")
     if args.train and not args.save:
-        parser.error("--train requires the --save option.")
+        args.save = args.LOADFILE
 
     return args
 
@@ -76,19 +78,27 @@ def main_analyzer(args: argparse.Namespace) -> None:
         raise FileNotFoundError(
             f"Neural network from file '{args.LOADFILE}' didn't load properly") from err
 
-    print(nn.layers)
+    inputs: List[Board] = []
+    try:
+        with open(args.FILE, 'r', encoding='utf-8') as file:
+            lines = [e[:-1] for e in list(file)]
+            for e in lines:
+                inputs.append(Board(e, args.train))
+    except Exception as err:
+        raise FileNotFoundError(
+            f"Inputs from '{args.FILE}' didn't load properly") from err
 
     if args.predict:
-        predict(nn)
-        return 0
+        return predict(nn, inputs)
     if args.train:
-        return train(nn, args.save)
+        return train(nn, args.save, inputs)
+    return 84  # should not append
 
 
 if __name__ == "__main__":
     try:
-        args = parse_arguments()
-        main_analyzer(args)
+        arg = parse_arguments()
+        main_analyzer(arg)
     except Exception as e:
         print(e, file=stderr)
         exit(84)

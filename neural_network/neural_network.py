@@ -10,11 +10,9 @@ class NeuralNetwork:
     def __init__(self, layers: List, epoch: int, eta: float):
         self.layers = layers
         self.epoch = epoch
-        pass
 
     def forward(self, inputs):
-        pass
+        print("forward")
 
-    def train(self, inputs):
-        print(self.layers)
-        pass
+    def train(self, inputs, expected):
+        print(self.layers, expected)
