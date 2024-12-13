@@ -1,0 +1,4 @@
+# shape of the nn (list of number of nodes for each layers)
+layers=[3, 5, 8, 3, 2]
+eta=<float>
+epochs=<int>

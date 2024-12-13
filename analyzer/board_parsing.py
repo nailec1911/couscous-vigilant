@@ -19,12 +19,24 @@ class Board:
         for piece in self.pieces_list:
             setattr(self, piece, create_grid())
             self.boards.append(getattr(self, piece))
+        self.turn: str = 'w'
+        self.halfmove: int = 0
+        self.fullmove: int = 0
 
         self.__parse()
 
     def __parse_infos(self, turn: str, rock: str, enpassant: str, halfmove: str, fullmove: str):
-        # TODO check that there are no errors and save them
-        pass
+        if len(turn) != 0 and not turn in "wb":
+            raise ValueError(f"The player turn {turn} is invalid")
+        self.turn = turn
+        # TODO self.rock = (False, False)
+        # TODO self.enpassant = False
+        try:
+            self.halfmove = int(halfmove)
+            self.fullmove = int(fullmove)
+        except ValueError:
+            print("Move value is wrong")
+        return
 
     def __parse_board(self, board: str):
         lines = board.split('/')
@@ -54,6 +66,7 @@ class Board:
             raise ValueError("Not enought information")
         self.__parse_board(splitted[0])
         self.__parse_infos(*splitted[1:])
+        self.__check_boards()
 
     def __repr__(self):
         res = ""
