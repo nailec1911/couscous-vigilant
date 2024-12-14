@@ -3,8 +3,11 @@
 from sys import stderr
 from typing import List
 from pickle import dump
+
+import numpy as np
 from analyzer.board_parsing import Board
-from neural_network.neural_network import NeuralNetwork
+# from neural_network.neural_network import NeuralNetwork
+from neural_network.conv_nn import NeuralNetwork
 
 
 def train(nn: NeuralNetwork, save: str, inputs: List[Board]) -> int:
@@ -19,9 +22,13 @@ def train(nn: NeuralNetwork, save: str, inputs: List[Board]) -> int:
         int: error code
     """
 
+    epoch = 0
+    total_loss = 0
     for board in inputs:
-        nn.train(board.boards, board.expected)
-        # TODO train properly
+        target = board.expected
+        board = np.array(board.boards)
+        total_loss += nn.train(board, target)
+    print(f"Epoch {epoch + 1}, Loss: {total_loss:.4f}")
 
     try:
         with open(save, 'wb') as file:

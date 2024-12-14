@@ -3,11 +3,12 @@
 import argparse
 from sys import stderr
 from typing import List
+from pickle import load
 from analyzer.predict import predict
 from analyzer.train import train
-from neural_network.neural_network import NeuralNetwork
-from pickle import load
 from analyzer.board_parsing import Board
+# from neural_network.neural_network import NeuralNetwork
+from neural_network.conv_nn import NeuralNetwork
 
 
 def parse_arguments():

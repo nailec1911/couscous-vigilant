@@ -1,6 +1,8 @@
 """predict a move for chess
 """
 from typing import List
+
+import numpy as np
 from analyzer.board_parsing import Board
 from neural_network.neural_network import NeuralNetwork
 
@@ -16,6 +18,8 @@ def predict(nn: NeuralNetwork, inputs: List[Board]) -> int:
         int: error code
     """
     for board in inputs:
-        nn.forward(board.boards)
+        board = np.array(board.boards)
+        res = nn.forward(board)
+        print(res)
         # TODO compute properly
     return 0
