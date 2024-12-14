@@ -19,16 +19,24 @@ def leaky_relu_derivative(x, alpha=0.01):
     return np.where(x > 0, 1, alpha)
 
 def stable_softmax(outputs):
-    outputs -= np.max(outputs)  # Shift logits to avoid overflow
+    outputs -= np.max(outputs)
     exp_outputs = np.exp(outputs)
     return exp_outputs / np.sum(exp_outputs)
+
+def pretty_print_prediction(outputs, target):
+    print("[", end="")
+    for output in outputs:
+        print(f" {output:.5f}", end="")
+    print(" ]", end="")
+    print(" |", target)
+    
 
 class ConvLayer:
     def __init__(self, num_filters, input_depth, kernel_size, eta=0.01):
         self.num_filters = num_filters
         self.kernel_size = kernel_size
         self.eta = eta
-        # Initialize kernels (filters) randomly
+        # init kernels randomly
         self.kernels = np.random.rand(num_filters, input_depth, kernel_size, kernel_size) - 0.5
         self.biases = np.random.rand(num_filters) - 0.5
 
@@ -40,7 +48,7 @@ class ConvLayer:
             for d in range(inputs.shape[0]):
                 output += self.convolve2d(inputs[d], self.kernels[k, d])
             output += self.biases[k]
-            self.outputs[k] = leaky_relu(output)  # Assign to the appropriate index
+            self.outputs[k] = leaky_relu(output)
         return self.outputs
 
 
@@ -116,12 +124,14 @@ class Layer:
 
 class NeuralNetwork:
     def __init__(self, input_shape, conv_layers, fully_connected, eta=0.01):
+        # for now the four output are hard coded.
+        # it is possible to let the user choose but idk if it is logic
         self.conv_layers = [ConvLayer(**params) for params in conv_layers]
         self.fc_layers = [
             Layer(size, prev_size, eta)
             for size, prev_size in zip(fully_connected[1:], fully_connected[:-1])
         ]
-        self.output_layer = Layer(4, fully_connected[-1], eta)  # 4 outputs for classification
+        self.output_layer = Layer(4, fully_connected[-1], eta)
 
     def forward(self, inputs):
         for layer in self.conv_layers:
@@ -135,7 +145,7 @@ class NeuralNetwork:
 
     def train(self, inputs, target):
         outputs = self.forward(inputs)
-        print(outputs, target)
+        pretty_print_prediction(outputs, target)
         loss = -np.sum(target * np.log(outputs))
         grad_outputs = outputs - target
         grad_inputs = self.output_layer.backward(self.fc_layers[-1].outputs, grad_outputs)
