@@ -4,7 +4,6 @@ from sys import stderr
 from pickle import dump
 from generator.config_parsing import Config, Conf_parameters
 from neural_network.conv_nn import NeuralNetwork
-# from neural_network.neural_network import NeuralNetwork
 
 
 def generate_nn(filename: str, conf: Conf_parameters) -> None:

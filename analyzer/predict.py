@@ -4,7 +4,7 @@ from typing import List
 
 import numpy as np
 from analyzer.board_parsing import Board
-from neural_network.neural_network import NeuralNetwork
+from neural_network.conv_nn import NeuralNetwork
 
 
 def interpret_result(result: np.ndarray, turn: str):
