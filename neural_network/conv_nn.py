@@ -3,6 +3,12 @@ from numba import jit, njit
 from numba import cuda
 from neural_network.convolve2d import convolve2d
 
+def linear_activation(x):
+    return x
+
+def linear_derivative(x):
+    return np.ones_like(x)
+
 def sigmoid(x):
     return 1 / (1 + np.exp(-x))
 

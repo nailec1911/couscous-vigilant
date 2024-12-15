@@ -2,6 +2,12 @@ import numpy as np
 from scipy.signal import convolve2d
 import matplotlib.pyplot as plt
 
+def linear_activation(x):
+    return x
+
+def linear_derivative(x):
+    return np.ones_like(x)
+
 def sigmoid(x):
     return 1 / (1 + np.exp(-x))
 
@@ -213,12 +219,12 @@ class NeuralNetwork:
 if __name__ == '__main__':
     input_shape = (13, 8, 8)
     conv_layers = [
-        {"num_filters": 26, "input_depth": 13, "kernel_size": 3, "eta": 0.01},
-        {"num_filters": 52, "input_depth": 26, "kernel_size": 3, "eta": 0.01},
+        {"num_filters": 26, "input_depth": 13, "kernel_size": 3, "eta": 0.1},
+        {"num_filters": 52, "input_depth": 26, "kernel_size": 3, "eta": 0.1},
     ]
     fully_connected = [832, 512]
 
-    nn = NeuralNetwork(input_shape, conv_layers, fully_connected, eta=0.0001)
+    nn = NeuralNetwork(input_shape, conv_layers, fully_connected, eta=0.001)
 
     dataset = [
         (np.random.rand(13, 8, 8), [1, 0, 0, 0]),  # Checkmate
