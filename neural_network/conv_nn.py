@@ -1,4 +1,7 @@
 import numpy as np
+from numba import jit
+from numba import cuda
+from neural_network.convolve2d import convolve2d
 
 
 def sigmoid(x):
@@ -49,6 +52,8 @@ class ConvLayer:
         self.num_filters = num_filters
         self.kernel_size = kernel_size
         self.eta = eta
+        self.inputs = None
+        self.outputs = None
 
         # He Initialization for kernels
         scale = np.sqrt(2 / (input_depth * kernel_size * kernel_size))
@@ -66,21 +71,10 @@ class ConvLayer:
             output = np.zeros(
                 (inputs.shape[1] - self.kernel_size + 1, inputs.shape[2] - self.kernel_size + 1))
             for d in range(inputs.shape[0]):
-                output += self.convolve2d(inputs[d], self.kernels[k, d])
+                output += convolve2d(inputs[d], self.kernels[k, d])
             output += self.biases[k]
             self.outputs[k] = leaky_relu(output)
         return self.outputs
-
-    def convolve2d(self, input_plane, kernel):
-        kernel_height, kernel_width = kernel.shape
-        output_height = input_plane.shape[0] - kernel_height + 1
-        output_width = input_plane.shape[1] - kernel_width + 1
-        output = np.zeros((output_height, output_width))
-        for i in range(output_height):
-            for j in range(output_width):
-                region = input_plane[i:i+kernel_height, j:j+kernel_width]
-                output[i, j] = np.sum(region * kernel)
-        return output
 
     def backward(self, grad_outputs):
         grad_inputs = np.zeros_like(self.inputs)
@@ -95,7 +89,7 @@ class ConvLayer:
             grad_biases[k] = np.sum(grad_output)
             for d in range(self.inputs.shape[0]):
                 # Convolve grad_output with the input to calculate kernel gradient
-                grad_kernels[k, d] = self.convolve2d(
+                grad_kernels[k, d] = convolve2d(
                     self.inputs[d], grad_output)
                 # Perform full convolution (flip kernel and convolve with grad_output)
                 flipped_kernel = np.flip(self.kernels[k, d], axis=(0, 1))
@@ -105,7 +99,7 @@ class ConvLayer:
                      (self.kernel_size - 1, self.kernel_size - 1)),
                     mode='constant'
                 )
-                grad_inputs[d] += self.convolve2d(
+                grad_inputs[d] += convolve2d(
                     padded_grad_output, flipped_kernel)
 
         # Update weights and biases
