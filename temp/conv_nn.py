@@ -2,26 +2,34 @@ import numpy as np
 from scipy.signal import convolve2d
 import matplotlib.pyplot as plt
 
-def linear_activation(x):
+
+def linear(x):
     return x
+
 
 def linear_derivative(x):
     return np.ones_like(x)
 
+
 def sigmoid(x):
     return 1 / (1 + np.exp(-x))
+
 
 def sigmoid_derivative(x):
     return x * (1 - x)
 
+
 def relu(x):
     return np.maximum(0, x)
+
 
 def relu_derivative(x):
     return (x > 0).astype(float)
 
+
 def leaky_relu(x, alpha=0.01):
     return np.maximum(x, alpha * x)
+
 
 def leaky_relu_derivative(x, alpha=0.01):
     x = np.asarray(x)  # Ensure it's a NumPy array
@@ -29,14 +37,17 @@ def leaky_relu_derivative(x, alpha=0.01):
     derivative[x <= 0] = alpha
     return derivative
 
+
 def stable_softmax(outputs):
     outputs -= np.max(outputs)
     exp_outputs = np.exp(outputs)
     return exp_outputs / np.sum(exp_outputs)
 
+
 def categorical_crossentropy(target, outputs, epsilon=1e-12):
     outputs = np.clip(outputs, epsilon, 1 - epsilon)
     return -np.sum(target * np.log(outputs))
+
 
 def im2col(inputs, kernel_size):
     """
@@ -46,7 +57,8 @@ def im2col(inputs, kernel_size):
     output_height = input_height - kernel_size + 1
     output_width = input_width - kernel_size + 1
 
-    col = np.zeros((input_depth * kernel_size * kernel_size, output_height * output_width))
+    col = np.zeros((input_depth * kernel_size * kernel_size,
+                   output_height * output_width))
     col_idx = 0
     for i in range(output_height):
         for j in range(output_width):
@@ -54,6 +66,7 @@ def im2col(inputs, kernel_size):
             col[:, col_idx] = patch
             col_idx += 1
     return col
+
 
 def pretty_print_prediction(outputs, target):
     print("[", end="")
@@ -64,15 +77,19 @@ def pretty_print_prediction(outputs, target):
 
 
 class ConvLayer:
-    def __init__(self, num_filters, input_depth, kernel_size, eta=0.01):
+    def __init__(self, num_filters, input_depth, kernel_size, eta=0.01, eval_func="leaky_relu"):
         self.num_filters = num_filters
         self.kernel_size = kernel_size
         self.eta = eta
         self.inputs = None
         self.outputs = None
+        self.eval_func = globals()[eval_func]
+        self.eval_rev_func = globals()[eval_func + "_derivative"]
+
         # He Initialization for kernels
         scale = np.sqrt(2 / (input_depth * kernel_size * kernel_size))
-        self.kernels = np.random.randn(num_filters, input_depth, kernel_size, kernel_size) * scale
+        self.kernels = np.random.randn(
+            num_filters, input_depth, kernel_size, kernel_size) * scale
 
         # Biases initialized to small random values
         self.biases = np.random.rand(num_filters) * 0.01
@@ -86,26 +103,32 @@ class ConvLayer:
         output_width = input_width - self.kernel_size + 1
 
         # Perform im2col to flatten the sliding windows
-        col = im2col(inputs, self.kernel_size)  # Shape: (input_depth * kernel_size^2, output_height * output_width)
+        # Shape: (input_depth * kernel_size^2, output_height * output_width)
+        col = im2col(inputs, self.kernel_size)
 
         # Flatten kernels for matrix multiplication
-        filters = self.kernels.reshape(self.num_filters, -1)  # Shape: (num_filters, input_depth * kernel_size^2)
+        # Shape: (num_filters, input_depth * kernel_size^2)
+        filters = self.kernels.reshape(self.num_filters, -1)
 
         # Perform the convolution using matrix multiplication
-        outputs = np.dot(filters, col) + self.biases[:, None]  # Add biases (broadcasted)
+        # Add biases (broadcasted)
+        outputs = np.dot(filters, col) + self.biases[:, None]
 
         # Reshape the outputs to (num_filters, output_height, output_width)
-        self.outputs = outputs.reshape(self.num_filters, output_height, output_width)
+        self.outputs = outputs.reshape(
+            self.num_filters, output_height, output_width)
 
         # Apply activation function
-        self.outputs = leaky_relu(self.outputs)
+        self.outputs = self.eval_func(self.outputs)
         return self.outputs
 
     def backward(self, grad_outputs):
         """
         Backpropagation using matrix multiplication.
         """
-        grad_outputs = grad_outputs * leaky_relu_derivative(self.outputs)  # Apply derivative of activation function
+        grad_outputs = grad_outputs * \
+            self.eval_rev_func(
+                self.outputs)  # Apply derivative of activation function
 
         # Compute gradients w.r.t. biases
         grad_biases = np.sum(grad_outputs, axis=(1, 2))
@@ -116,24 +139,32 @@ class ConvLayer:
         grad_inputs = np.zeros_like(self.inputs)
 
         # Flatten inputs and gradients for matrix operations
-        col = im2col(self.inputs, self.kernel_size)  # Shape: (input_depth * kernel_size^2, output_height * output_width)
-        grad_outputs_reshaped = grad_outputs.reshape(self.num_filters, -1)  # Shape: (num_filters, output_height * output_width)
+        # Shape: (input_depth * kernel_size^2, output_height * output_width)
+        col = im2col(self.inputs, self.kernel_size)
+        # Shape: (num_filters, output_height * output_width)
+        grad_outputs_reshaped = grad_outputs.reshape(self.num_filters, -1)
 
         # Gradient w.r.t. kernels (matrix multiplication)
-        grad_kernels_flat = np.dot(grad_outputs_reshaped, col.T)  # Shape: (num_filters, input_depth * kernel_size^2)
-        grad_kernels = grad_kernels_flat.reshape(self.kernels.shape)  # Reshape to (num_filters, input_depth, kernel_size, kernel_size)
+        # Shape: (num_filters, input_depth * kernel_size^2)
+        grad_kernels_flat = np.dot(grad_outputs_reshaped, col.T)
+        # Reshape to (num_filters, input_depth, kernel_size, kernel_size)
+        grad_kernels = grad_kernels_flat.reshape(self.kernels.shape)
 
         # Gradient w.r.t. inputs (transposed matrix multiplication)
-        filters_flat = self.kernels.reshape(self.num_filters, -1)  # Shape: (num_filters, input_depth * kernel_size^2)
-        grad_inputs_col = np.dot(filters_flat.T, grad_outputs_reshaped)  # Shape: (input_depth * kernel_size^2, output_height * output_width)
+        # Shape: (num_filters, input_depth * kernel_size^2)
+        filters_flat = self.kernels.reshape(self.num_filters, -1)
+        # Shape: (input_depth * kernel_size^2, output_height * output_width)
+        grad_inputs_col = np.dot(filters_flat.T, grad_outputs_reshaped)
 
         # Reshape col back to the input gradient shape
         output_height = grad_outputs.shape[1]
         output_width = grad_outputs.shape[2]
         for i in range(output_height):
             for j in range(output_width):
-                patch = grad_inputs_col[:, i * output_width + j].reshape(self.inputs.shape[0], self.kernel_size, self.kernel_size)
-                grad_inputs[:, i:i + self.kernel_size, j:j + self.kernel_size] += patch
+                patch = grad_inputs_col[:, i * output_width + j].reshape(
+                    self.inputs.shape[0], self.kernel_size, self.kernel_size)
+                grad_inputs[:, i:i + self.kernel_size,
+                            j:j + self.kernel_size] += patch
 
         # Update weights and biases
         self.kernels -= self.eta * grad_kernels
@@ -161,14 +192,17 @@ class Perceptron:
         self.weights += self.eta * delta * inputs
         self.bias += self.eta * delta
 
+
 class Layer:
     def __init__(self, nbr_neurons, input_size, eta=0.01):
-        self.neurons = [Perceptron(input_size, eta) for _ in range(nbr_neurons)]
+        self.neurons = [Perceptron(input_size, eta)
+                        for _ in range(nbr_neurons)]
         self.outputs = np.zeros(nbr_neurons)
 
     def forward(self, inputs):
         self.inputs = inputs
-        self.outputs = np.array([neuron.predict(inputs) for neuron in self.neurons])
+        self.outputs = np.array([neuron.predict(inputs)
+                                for neuron in self.neurons])
         return self.outputs
 
     def backward(self, inputs, deltas):
@@ -178,6 +212,7 @@ class Layer:
             neuron.update_weights(inputs, delta)
             new_deltas += delta * neuron.weights
         return new_deltas
+
 
 class NeuralNetwork:
     def __init__(self, input_shape, conv_layers, fully_connected, eta=0.01, epoch=1):
@@ -206,12 +241,15 @@ class NeuralNetwork:
         pretty_print_prediction(outputs, target)
         loss = categorical_crossentropy(target, outputs)
         grad_outputs = outputs - target
-        grad_inputs = self.output_layer.backward(self.fc_layers[-1].outputs, grad_outputs)
+        grad_inputs = self.output_layer.backward(
+            self.fc_layers[-1].outputs, grad_outputs)
         for i in range(len(self.fc_layers) - 1, 0, -1):
-            grad_inputs = self.fc_layers[i].backward(self.fc_layers[i - 1].outputs, grad_inputs)
+            grad_inputs = self.fc_layers[i].backward(
+                self.fc_layers[i - 1].outputs, grad_inputs)
         grad_inputs = self.fc_layers[0].backward(inputs.flatten(), grad_inputs)
         for layer in reversed(self.conv_layers):
-            grad_inputs = layer.backward(grad_inputs.reshape(layer.outputs.shape))
+            grad_inputs = layer.backward(
+                grad_inputs.reshape(layer.outputs.shape))
         return loss
 
 
@@ -219,12 +257,14 @@ class NeuralNetwork:
 if __name__ == '__main__':
     input_shape = (13, 8, 8)
     conv_layers = [
-        {"num_filters": 26, "input_depth": 13, "kernel_size": 3, "eta": 0.1},
-        {"num_filters": 52, "input_depth": 26, "kernel_size": 3, "eta": 0.1},
+        {"num_filters": 26, "input_depth": 13, "kernel_size": 3,
+            "eta": 0.1, "eval_func": "leaky_relu"},
+        {"num_filters": 52, "input_depth": 26, "kernel_size": 3,
+            "eta": 0.1, "eval_func": "leaky_relu"},
     ]
     fully_connected = [832, 512]
 
-    nn = NeuralNetwork(input_shape, conv_layers, fully_connected, eta=0.001)
+    nn = NeuralNetwork(input_shape, conv_layers, fully_connected, eta=0.01)
 
     dataset = [
         (np.random.rand(13, 8, 8), [1, 0, 0, 0]),  # Checkmate
@@ -233,35 +273,12 @@ if __name__ == '__main__':
         (np.random.rand(13, 8, 8), [0, 0, 0, 1]),  # Nothing
     ]
 
-    loss_history = []
-
-    epochs = 10000
-    # Training loop
+    epochs = 300
     for epoch in range(epochs):
         total_loss = 0
-
         for inputs, target in dataset:
-            # Convert inputs and targets to numpy arrays
             inputs = np.array(inputs)
             target = np.array(target)
-
-            # Perform training and accumulate the loss
             loss = nn.train(inputs, target)
             total_loss += loss
-
-        # Append total loss for this epoch to the history
-        loss_history.append(total_loss)
-
-        # Print loss for the current epoch
         print(f"Epoch {epoch + 1}, Loss: {total_loss:.4f}")
-
-    # Plot the loss history
-    plt.figure(figsize=(10, 6))
-    plt.plot(range(1, epochs + 1), loss_history, label='Training Loss', color='b', linewidth=2)
-    plt.title('Training Loss Over Epochs', fontsize=16)
-    plt.xlabel('Epoch', fontsize=14)
-    plt.ylabel('Loss', fontsize=14)
-    plt.grid(True, linestyle='--', alpha=0.6)
-    plt.legend(fontsize=12)
-    plt.tight_layout()
-    plt.savefig('truc.png')

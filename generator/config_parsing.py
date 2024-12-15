@@ -39,13 +39,17 @@ class Conf_parameters:
             "num_filters": lambda x: isinstance(x, int) and x > 0,
             "input_depth": lambda x: isinstance(x, int) and x > 0,
             "kernel_size": lambda x: isinstance(x, int) and x > 0,
-            "eta": lambda x: isinstance(x, (float, int)) and x > 0
+            "eta": lambda x: isinstance(x, (float, int)) and x > 0,
+            "eval_func": lambda x: isinstance(x, str) and x in self.eval_funcs
         }
         if not isinstance(layer, dict):
             print("layer must be a dict", file=stderr)
             return False
         for key, condition in expected_keys.items():
             if key not in layer or not condition(layer[key]):
+                if key == "eval_func":
+                    print(f"Invalid value for 'eval_func' possible values are :"
+                          f"{self.eval_funcs}", file=stderr)
                 return False
         return True
 
@@ -64,6 +68,7 @@ class Conf_parameters:
         self.eta: float = 0
         self.fully_connected: List[int] = []
         self.conv_layers: List[dict] = []
+        self.eval_funcs = ["relu", "leaky_relu", "sigmoid", "linear"]
         content = {}
         try:
             with open(file, 'r', encoding='utf-8') as file:
