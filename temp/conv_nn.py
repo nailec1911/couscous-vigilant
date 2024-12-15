@@ -174,8 +174,10 @@ class ConvLayer:
 
 
 class Perceptron:
-    def __init__(self, input_nbr, eta=0.01):
+    def __init__(self, input_nbr, eta=0.01, eval_func="leacky_relu"):
         self.eta = eta
+        self.eval_func = globals()[eval_func]
+        self.eval_rev_func = globals()[eval_func + "_derivative"]
 
         # He Initialization for weights
         scale = np.sqrt(2 / input_nbr)
@@ -186,7 +188,7 @@ class Perceptron:
 
     def predict(self, inputs):
         weighted_sum = np.dot(inputs, self.weights) + self.bias
-        return leaky_relu(weighted_sum)
+        return self.eval_func(weighted_sum)
 
     def update_weights(self, inputs, delta):
         self.weights += self.eta * delta * inputs
@@ -194,10 +196,12 @@ class Perceptron:
 
 
 class Layer:
-    def __init__(self, nbr_neurons, input_size, eta=0.01):
-        self.neurons = [Perceptron(input_size, eta)
+    def __init__(self, nbr_neurons, input_size, eta=0.01, eval_func="leaky_relu"):
+        self.neurons = [Perceptron(input_size, eta, eval_func)
                         for _ in range(nbr_neurons)]
         self.outputs = np.zeros(nbr_neurons)
+        self.eval_func = globals()[eval_func]
+        self.eval_rev_func = globals()[eval_func + "_derivative"]
 
     def forward(self, inputs):
         self.inputs = inputs
@@ -208,22 +212,23 @@ class Layer:
     def backward(self, inputs, deltas):
         new_deltas = np.zeros(len(inputs))
         for i, neuron in enumerate(self.neurons):
-            delta = deltas[i] * leaky_relu_derivative(self.outputs[i])
+            delta = deltas[i] * self.eval_rev_func(self.outputs[i])
             neuron.update_weights(inputs, delta)
             new_deltas += delta * neuron.weights
         return new_deltas
 
 
 class NeuralNetwork:
-    def __init__(self, input_shape, conv_layers, fully_connected, eta=0.01, epoch=1):
+    def __init__(self, conv_layers, fully_connected, eval_funcs, eta=0.01, epoch=1):
         # for now the four outputs are hard coded.
         # it is possible to let the user choose but idk if it is logic
         self.conv_layers = [ConvLayer(**params) for params in conv_layers]
-        self.fc_layers = [
-            Layer(size, prev_size, eta)
-            for size, prev_size in zip(fully_connected[1:], fully_connected[:-1])
-        ]
-        self.output_layer = Layer(4, fully_connected[-1], eta)
+        z = zip(fully_connected[1:], fully_connected[:-1])
+        self.fc_layers = []
+        for i, (size, prev_size) in enumerate(z):
+            self.fc_layers.append(Layer(size, prev_size, eta, eval_funcs[i]))
+
+        self.output_layer = Layer(4, fully_connected[-1], eta, eval_funcs[-1])
         self.epoch = epoch
 
     def forward(self, inputs):
@@ -255,7 +260,6 @@ class NeuralNetwork:
 
 # Example of usage
 if __name__ == '__main__':
-    input_shape = (13, 8, 8)
     conv_layers = [
         {"num_filters": 26, "input_depth": 13, "kernel_size": 3,
             "eta": 0.1, "eval_func": "leaky_relu"},
@@ -263,8 +267,9 @@ if __name__ == '__main__':
             "eta": 0.1, "eval_func": "leaky_relu"},
     ]
     fully_connected = [832, 512]
+    eval_funcs = ["leaky_relu", "leaky_relu"]
 
-    nn = NeuralNetwork(input_shape, conv_layers, fully_connected, eta=0.01)
+    nn = NeuralNetwork(conv_layers, fully_connected, eval_funcs, eta=0.01)
 
     dataset = [
         (np.random.rand(13, 8, 8), [1, 0, 0, 0]),  # Checkmate

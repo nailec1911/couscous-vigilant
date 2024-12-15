@@ -40,7 +40,7 @@ class Conf_parameters:
             "input_depth": lambda x: isinstance(x, int) and x > 0,
             "kernel_size": lambda x: isinstance(x, int) and x > 0,
             "eta": lambda x: isinstance(x, (float, int)) and x > 0,
-            "eval_func": lambda x: isinstance(x, str) and x in self.eval_funcs
+            "eval_func": lambda x: isinstance(x, str) and x in self.possible_eval_funcs
         }
         if not isinstance(layer, dict):
             print("layer must be a dict", file=stderr)
@@ -49,7 +49,7 @@ class Conf_parameters:
             if key not in layer or not condition(layer[key]):
                 if key == "eval_func":
                     print(f"Invalid value for 'eval_func' possible values are :"
-                          f"{self.eval_funcs}", file=stderr)
+                          f"{self.possible_eval_funcs}", file=stderr)
                 return False
         return True
 
@@ -63,12 +63,24 @@ class Conf_parameters:
                 "'conv_layers' must respect the good format")
         self.conv_layers = conv
 
+    def __parse_eval_funcs(self, content: dict):
+        if not "eval_funcs" in content.keys():
+            raise KeyError("'eval_funcs' must be set in the config")
+        funcs = content["eval_funcs"]
+        if not isinstance(funcs, list) or any(not x in self.possible_eval_funcs for x in funcs):
+            print(f"Invalid value for 'eval_func' possible values are :"
+                  f"{self.possible_eval_funcs}", file=stderr)
+            raise ValueError(
+                "'eval_funcs' must respect the good format")
+        self.eval_funcs = funcs
+
     def __init__(self, file: str):
         self.epoch: int = 0
         self.eta: float = 0
         self.fully_connected: List[int] = []
         self.conv_layers: List[dict] = []
-        self.eval_funcs = ["relu", "leaky_relu", "sigmoid", "linear"]
+        self.eval_funcs: List[str] = []
+        self.possible_eval_funcs = ["relu", "leaky_relu", "sigmoid", "linear"]
         content = {}
         try:
             with open(file, 'r', encoding='utf-8') as file:
@@ -77,7 +89,7 @@ class Conf_parameters:
             raise RuntimeError(exc.args[0]) from exc
 
         for key in content.keys():
-            if key not in ["conv_layers", "fully_connected", "eta", "epoch"]:
+            if key not in ["conv_layers", "fully_connected", "eta", "epoch", "eval_funcs"]:
                 raise KeyError(
                     f"Key '{key}' isn't expected in the config file")
 
@@ -85,6 +97,10 @@ class Conf_parameters:
         self.__parse_eta(content)
         self.__parse_fully_connected(content)
         self.__parse_conv_layers(content)
+        self.__parse_eval_funcs(content)
+        if len(self.eval_funcs) != len(self.fully_connected):
+            raise ValueError(
+                "'evals_funcs' must have the same number of elements than 'fully_connected'")
 
 
 class Config:
