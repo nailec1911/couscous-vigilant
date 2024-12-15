@@ -16,10 +16,13 @@ def relu_derivative(x):
     return (x > 0).astype(float)
 
 def leaky_relu(x, alpha=0.01):
-    return np.where(x > 0, x, alpha * x)
+    return np.maximum(x, alpha * x)
 
 def leaky_relu_derivative(x, alpha=0.01):
-    return np.where(x > 0, 1, alpha)
+    x = np.asarray(x)  # Ensure it's a NumPy array
+    derivative = np.ones_like(x)
+    derivative[x <= 0] = alpha
+    return derivative
 
 def stable_softmax(outputs):
     outputs -= np.max(outputs)
