@@ -23,12 +23,13 @@ def train(nn: NeuralNetwork, save: str, inputs: List[Board]) -> int:
     """
 
     epoch = 0
-    total_loss = 0
-    for board in inputs:
-        target = board.expected
-        board = np.array(board.boards)
-        total_loss += nn.train(board, target)
-    print(f"Epoch {epoch + 1}, Loss: {total_loss:.4f}")
+    for epoch in range(nn.epoch):
+        total_loss = 0
+        for board in inputs:
+            target = board.expected
+            board = np.array(board.boards)
+            total_loss += nn.train(board, target)
+        print(f"Epoch {epoch + 1}, Loss: {total_loss:.4f}")
 
     try:
         with open(save, 'wb') as file:

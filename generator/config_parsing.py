@@ -2,45 +2,84 @@
 """
 from sys import stderr
 from typing import List
+import json
 
 
 class Conf_parameters:
     """parse and contains a configuration
     """
 
-    def __parse_layers(self, line: str):
-        self.layers = eval(line)
+    def __parse_epoch(self, content: dict):
+        if not "epoch" in content.keys():
+            raise KeyError("'epoch' must be set in the config")
+        epoch = content["epoch"]
+        if not isinstance(epoch, int) or epoch <= 0:
+            raise ValueError("'epoch' must be a positive int")
+        self.epoch = epoch
 
-    def __parse_epoch(self, line: str):
-        self.epoch = int(line)
+    def __parse_eta(self, content: dict):
+        if not "eta" in content.keys():
+            raise KeyError("'eta' must be set in the config")
+        eta = content["eta"]
+        if not isinstance(eta, (float, int)) or eta <= 0:
+            raise ValueError("'eta' must be a positive float")
+        self.eta = eta
 
-    def __parse_eta(self, line: str):
-        self.eta = float(line)
+    def __parse_fully_connected(self, content: dict):
+        if not "fully_connected" in content.keys():
+            raise KeyError("'fully_connected' must be set in the config")
+        fully = content["fully_connected"]
+        if not isinstance(fully, list) or any(not isinstance(x, int) or x <= 0 for x in fully):
+            raise ValueError(
+                "'fully_connected' must be a list of positive int")
+        self.fully_connected = fully
+
+    def __is_valid_conv_layer(self, layer) -> bool:
+        expected_keys = {
+            "num_filters": lambda x: isinstance(x, int) and x > 0,
+            "input_depth": lambda x: isinstance(x, int) and x > 0,
+            "kernel_size": lambda x: isinstance(x, int) and x > 0,
+            "eta": lambda x: isinstance(x, (float, int)) and x > 0
+        }
+        if not isinstance(layer, dict):
+            print("layer must be a dict", file=stderr)
+            return False
+        for key, condition in expected_keys.items():
+            if key not in layer or not condition(layer[key]):
+                return False
+        return True
+
+    def __parse_conv_layers(self, content: dict):
+        if not "conv_layers" in content.keys():
+            raise KeyError("'conv_layers' must be set in the config")
+        conv = content["conv_layers"]
+        if not isinstance(conv, list) or any(
+                not self.__is_valid_conv_layer(layer) for layer in conv):
+            raise ValueError(
+                "'conv_layers' must respect the good format")
+        self.conv_layers = conv
 
     def __init__(self, file: str):
-        self.layers: List[int] = []
         self.epoch: int = 0
         self.eta: float = 0
-        content = ""
+        self.fully_connected: List[int] = []
+        self.conv_layers: List[dict] = []
+        content = {}
         try:
             with open(file, 'r', encoding='utf-8') as file:
-                content = file.read()
+                content = json.load(file)
         except Exception as exc:
-            raise RuntimeError(f"Config file '{file}' failed to open") from exc
-        parse_funcs: dict = {"layers": self.__parse_layers,
-                             "epoch": self.__parse_epoch, "eta": self.__parse_eta}
+            raise RuntimeError(exc.args[0]) from exc
 
-        for i, line in enumerate(content.split('\n')):
-            line.strip()
-            if line == '' or line[0] == '#':
-                continue
-            elts = line.split('=')
-            if len(elts) != 2 or not elts[0].strip() in parse_funcs.keys():
-                raise ValueError(f"Error in {file} at line {i}:\n\t{line}")
-            try:
-                parse_funcs[elts[0].strip()](elts[1].strip())
-            except Exception as err:
-                raise ValueError(f"Error in {file}:\n\t{i}:{line}") from err
+        for key in content.keys():
+            if key not in ["conv_layers", "fully_connected", "eta", "epoch"]:
+                raise KeyError(
+                    f"Key '{key}' isn't expected in the config file")
+
+        self.__parse_epoch(content)
+        self.__parse_eta(content)
+        self.__parse_fully_connected(content)
+        self.__parse_conv_layers(content)
 
 
 class Config:

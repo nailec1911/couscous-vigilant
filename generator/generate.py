@@ -16,15 +16,8 @@ def generate_nn(filename: str, conf: Conf_parameters) -> None:
     print(f"Generating {filename}")
 
     input_shape = (16, 8, 8)
-    conv_layers = [
-        {"num_filters": 32, "input_depth": 16, "kernel_size": 3, "eta": 0.01},
-        {"num_filters": 64, "input_depth": 32, "kernel_size": 3, "eta": 0.01},
-    ]
-    fully_connected = [1024, 4]
-
-    nn = NeuralNetwork(input_shape, conv_layers, fully_connected, eta=0.001)
-
-    # nn = NeuralNetwork(conf.layers, conf.epoch, conf.eta)
+    nn = NeuralNetwork(input_shape, conf.conv_layers,
+                       conf.fully_connected, eta=conf.eta, epoch=conf.epoch)
     try:
         with open(filename, 'wb') as file:
             dump(nn, file)
