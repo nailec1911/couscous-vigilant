@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.signal import correlate2d
 
 def sigmoid(x):
     return 1 / (1 + np.exp(-x))
@@ -27,6 +28,23 @@ def categorical_crossentropy(target, outputs, epsilon=1e-12):
     outputs = np.clip(outputs, epsilon, 1 - epsilon)
     return -np.sum(target * np.log(outputs))
 
+def im2col(inputs, kernel_size):
+    """
+    Rearranges the input into a 2D matrix where each column is a flattened sliding window.
+    """
+    input_depth, input_height, input_width = inputs.shape
+    output_height = input_height - kernel_size + 1
+    output_width = input_width - kernel_size + 1
+
+    col = np.zeros((input_depth * kernel_size * kernel_size, output_height * output_width))
+    col_idx = 0
+    for i in range(output_height):
+        for j in range(output_width):
+            patch = inputs[:, i:i + kernel_size, j:j + kernel_size].reshape(-1)
+            col[:, col_idx] = patch
+            col_idx += 1
+    return col
+
 def pretty_print_prediction(outputs, target):
     print("[", end="")
     for output in outputs:
@@ -49,47 +67,62 @@ class ConvLayer:
         self.biases = np.random.rand(num_filters) * 0.01
 
     def forward(self, inputs):
-        self.inputs = inputs
-        self.outputs = np.zeros((self.num_filters, inputs.shape[1] - self.kernel_size + 1, inputs.shape[2] - self.kernel_size + 1))
-        for k in range(self.num_filters):
-            output = np.zeros((inputs.shape[1] - self.kernel_size + 1, inputs.shape[2] - self.kernel_size + 1))
-            for d in range(inputs.shape[0]):
-                output += self.convolve2d(inputs[d], self.kernels[k, d])
-            output += self.biases[k]
-            self.outputs[k] = leaky_relu(output)
+        self.inputs = inputs  # Cache inputs for backward pass
+
+        # Calculate output dimensions
+        input_depth, input_height, input_width = inputs.shape
+        output_height = input_height - self.kernel_size + 1
+        output_width = input_width - self.kernel_size + 1
+
+        # Perform im2col to flatten the sliding windows
+        col = im2col(inputs, self.kernel_size)  # Shape: (input_depth * kernel_size^2, output_height * output_width)
+
+        # Flatten kernels for matrix multiplication
+        filters = self.kernels.reshape(self.num_filters, -1)  # Shape: (num_filters, input_depth * kernel_size^2)
+
+        # Perform the convolution using matrix multiplication
+        outputs = np.dot(filters, col) + self.biases[:, None]  # Add biases (broadcasted)
+
+        # Reshape the outputs to (num_filters, output_height, output_width)
+        self.outputs = outputs.reshape(self.num_filters, output_height, output_width)
+
+        # Apply activation function
+        self.outputs = leaky_relu(self.outputs)
         return self.outputs
 
+    def backward(self, grad_outputs):
+        """
+        Backpropagation using matrix multiplication.
+        """
+        grad_outputs = grad_outputs * leaky_relu_derivative(self.outputs)  # Apply derivative of activation function
 
-    def convolve2d(self, input_plane, kernel):
-        kernel_height, kernel_width = kernel.shape
-        output_height = input_plane.shape[0] - kernel_height + 1
-        output_width = input_plane.shape[1] - kernel_width + 1
-        output = np.zeros((output_height, output_width))
+        # Compute gradients w.r.t. biases
+        grad_biases = np.sum(grad_outputs, axis=(1, 2))
+
+        # Compute gradients w.r.t. kernels
+        input_depth, input_height, input_width = self.inputs.shape
+        grad_kernels = np.zeros_like(self.kernels)
+        grad_inputs = np.zeros_like(self.inputs)
+
+        # Flatten inputs and gradients for matrix operations
+        col = im2col(self.inputs, self.kernel_size)  # Shape: (input_depth * kernel_size^2, output_height * output_width)
+        grad_outputs_reshaped = grad_outputs.reshape(self.num_filters, -1)  # Shape: (num_filters, output_height * output_width)
+
+        # Gradient w.r.t. kernels (matrix multiplication)
+        grad_kernels_flat = np.dot(grad_outputs_reshaped, col.T)  # Shape: (num_filters, input_depth * kernel_size^2)
+        grad_kernels = grad_kernels_flat.reshape(self.kernels.shape)  # Reshape to (num_filters, input_depth, kernel_size, kernel_size)
+
+        # Gradient w.r.t. inputs (transposed matrix multiplication)
+        filters_flat = self.kernels.reshape(self.num_filters, -1)  # Shape: (num_filters, input_depth * kernel_size^2)
+        grad_inputs_col = np.dot(filters_flat.T, grad_outputs_reshaped)  # Shape: (input_depth * kernel_size^2, output_height * output_width)
+
+        # Reshape col back to the input gradient shape
+        output_height = grad_outputs.shape[1]
+        output_width = grad_outputs.shape[2]
         for i in range(output_height):
             for j in range(output_width):
-                region = input_plane[i:i+kernel_height, j:j+kernel_width]
-                output[i, j] = np.sum(region * kernel)
-        return output
-
-    def backward(self, grad_outputs):
-        grad_inputs = np.zeros_like(self.inputs)
-        grad_kernels = np.zeros_like(self.kernels)
-        grad_biases = np.zeros_like(self.biases)
-
-        for k in range(self.num_filters):
-            grad_output = grad_outputs[k] * leaky_relu_derivative(self.outputs[k])  # Apply leaky_relu derivative
-            grad_biases[k] = np.sum(grad_output)  # Bias gradient is the sum of the gradients
-            for d in range(self.inputs.shape[0]):
-                # Convolve grad_output with the input to calculate kernel gradient
-                grad_kernels[k, d] = self.convolve2d(self.inputs[d], grad_output)
-                # Perform full convolution (flip kernel and convolve with grad_output)
-                flipped_kernel = np.flip(self.kernels[k, d], axis=(0, 1))
-                padded_grad_output = np.pad(
-                    grad_output,
-                    ((self.kernel_size - 1, self.kernel_size - 1), (self.kernel_size - 1, self.kernel_size - 1)),
-                    mode='constant'
-                )
-                grad_inputs[d] += self.convolve2d(padded_grad_output, flipped_kernel)
+                patch = grad_inputs_col[:, i * output_width + j].reshape(self.inputs.shape[0], self.kernel_size, self.kernel_size)
+                grad_inputs[:, i:i + self.kernel_size, j:j + self.kernel_size] += patch
 
         # Update weights and biases
         self.kernels -= self.eta * grad_kernels
@@ -188,7 +221,7 @@ if __name__ == '__main__':
         (np.random.rand(13, 8, 8), [0, 0, 0, 1]),  # Nothing
     ]
 
-    epochs = 1000
+    epochs = 300
     for epoch in range(epochs):
         total_loss = 0
         for inputs, target in dataset:
