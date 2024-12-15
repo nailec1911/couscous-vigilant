@@ -1,7 +1,6 @@
 import numpy as np
-from numba import jit
-from numba import cuda
-from neural_network.convolve2d import convolve2d
+from scipy.signal import convolve2d
+import matplotlib.pyplot as plt
 
 def sigmoid(x):
     return 1 / (1 + np.exp(-x))
@@ -211,12 +210,12 @@ class NeuralNetwork:
 if __name__ == '__main__':
     input_shape = (13, 8, 8)
     conv_layers = [
-        {"num_filters": 26, "input_depth": 13, "kernel_size": 3, "eta": 0.1},
-        {"num_filters": 52, "input_depth": 26, "kernel_size": 3, "eta": 0.1},
+        {"num_filters": 26, "input_depth": 13, "kernel_size": 3, "eta": 0.01},
+        {"num_filters": 52, "input_depth": 26, "kernel_size": 3, "eta": 0.01},
     ]
     fully_connected = [832, 512]
 
-    nn = NeuralNetwork(input_shape, conv_layers, fully_connected, eta=0.01)
+    nn = NeuralNetwork(input_shape, conv_layers, fully_connected, eta=0.0001)
 
     dataset = [
         (np.random.rand(13, 8, 8), [1, 0, 0, 0]),  # Checkmate
@@ -225,12 +224,35 @@ if __name__ == '__main__':
         (np.random.rand(13, 8, 8), [0, 0, 0, 1]),  # Nothing
     ]
 
-    epochs = 300
+    loss_history = []
+
+    epochs = 10000
+    # Training loop
     for epoch in range(epochs):
         total_loss = 0
+
         for inputs, target in dataset:
+            # Convert inputs and targets to numpy arrays
             inputs = np.array(inputs)
             target = np.array(target)
+
+            # Perform training and accumulate the loss
             loss = nn.train(inputs, target)
             total_loss += loss
+
+        # Append total loss for this epoch to the history
+        loss_history.append(total_loss)
+
+        # Print loss for the current epoch
         print(f"Epoch {epoch + 1}, Loss: {total_loss:.4f}")
+
+    # Plot the loss history
+    plt.figure(figsize=(10, 6))
+    plt.plot(range(1, epochs + 1), loss_history, label='Training Loss', color='b', linewidth=2)
+    plt.title('Training Loss Over Epochs', fontsize=16)
+    plt.xlabel('Epoch', fontsize=14)
+    plt.ylabel('Loss', fontsize=14)
+    plt.grid(True, linestyle='--', alpha=0.6)
+    plt.legend(fontsize=12)
+    plt.tight_layout()
+    plt.savefig('truc.png')
