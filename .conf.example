@@ -1,9 +1,10 @@
 {
     "conv_layers": [
-        {"num_filters": 32, "input_depth": 16, "kernel_size": 3, "eta": 0.01},
-        {"num_filters": 64, "input_depth": 32, "kernel_size": 3, "eta": 0.01}
+        {"num_filters": 26, "input_depth": 13, "kernel_size": 3, "eta": 0.001, "eval_func": "linear"},
+        {"num_filters": 52, "input_depth": 26, "kernel_size": 3, "eta": 0.001, "eval_func": "linear"}
     ],
-    "fully_connected": [1024, 512],
-    "eta": 0.01,
-    "epoch": 12,
+    "fully_connected": [832, 512],
+    "eval_funcs": ["relu", "leaky_relu"],
+    "eta": 0.00001,
+    "epoch": 12
 }
