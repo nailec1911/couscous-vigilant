@@ -37,4 +37,5 @@ def train(nn: NeuralNetwork, save: str, inputs: List[Board]) -> int:
     except Exception:
         print(f"Didn't manage to write NN in file {save}", file=stderr)
         return 84
+    print(f"New neural network saved in {save}")
     return 0

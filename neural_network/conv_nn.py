@@ -31,6 +31,11 @@ def stable_softmax(outputs):
     return exp_outputs / np.sum(exp_outputs)
 
 
+def categorical_crossentropy(target, outputs, epsilon=1e-12):
+    outputs = np.clip(outputs, epsilon, 1 - epsilon)
+    return -np.sum(target * np.log(outputs))
+
+
 def pretty_print_prediction(outputs, target):
     print("[", end="")
     for output in outputs:
@@ -44,10 +49,14 @@ class ConvLayer:
         self.num_filters = num_filters
         self.kernel_size = kernel_size
         self.eta = eta
-        # init kernels randomly
-        self.kernels = np.random.rand(
-            num_filters, input_depth, kernel_size, kernel_size) - 0.5
-        self.biases = np.random.rand(num_filters) - 0.5
+
+        # He Initialization for kernels
+        scale = np.sqrt(2 / (input_depth * kernel_size * kernel_size))
+        self.kernels = np.random.randn(
+            num_filters, input_depth, kernel_size, kernel_size) * scale
+
+        # Biases initialized to small random values
+        self.biases = np.random.rand(num_filters) * 0.01
 
     def forward(self, inputs):
         self.inputs = inputs
@@ -79,7 +88,7 @@ class ConvLayer:
         grad_biases = np.zeros_like(self.biases)
 
         for k in range(self.num_filters):
-            # Apply sigmoid derivative
+            # Apply leaky_relu derivative
             grad_output = grad_outputs[k] * \
                 leaky_relu_derivative(self.outputs[k])
             # Bias gradient is the sum of the gradients
@@ -109,8 +118,13 @@ class ConvLayer:
 class Perceptron:
     def __init__(self, input_nbr, eta=0.01):
         self.eta = eta
-        self.weights = np.random.rand(input_nbr) - 0.5
-        self.bias = np.random.rand() - 0.5
+
+        # He Initialization for weights
+        scale = np.sqrt(2 / input_nbr)
+        self.weights = np.random.randn(input_nbr) * scale
+
+        # Bias initialized to a small random value
+        self.bias = np.random.rand() * 0.01
 
     def predict(self, inputs):
         weighted_sum = np.dot(inputs, self.weights) + self.bias
@@ -144,7 +158,7 @@ class Layer:
 
 class NeuralNetwork:
     def __init__(self, input_shape, conv_layers, fully_connected, eta=0.01, epoch=1):
-        # for now the four output are hard coded.
+        # for now the four outputs are hard coded.
         # it is possible to let the user choose but idk if it is logic
         self.conv_layers = [ConvLayer(**params) for params in conv_layers]
         self.fc_layers = [
@@ -167,7 +181,7 @@ class NeuralNetwork:
     def train(self, inputs, target):
         outputs = self.forward(inputs)
         pretty_print_prediction(outputs, target)
-        loss = -np.sum(target * np.log(outputs))
+        loss = categorical_crossentropy(target, outputs)
         grad_outputs = outputs - target
         grad_inputs = self.output_layer.backward(
             self.fc_layers[-1].outputs, grad_outputs)
@@ -183,20 +197,20 @@ class NeuralNetwork:
 
 # Example of usage
 if __name__ == '__main__':
-    input_shape = (16, 8, 8)
+    input_shape = (13, 8, 8)
     conv_layers = [
-        {"num_filters": 32, "input_depth": 16, "kernel_size": 3, "eta": 0.01},
-        {"num_filters": 64, "input_depth": 32, "kernel_size": 3, "eta": 0.01},
+        {"num_filters": 26, "input_depth": 13, "kernel_size": 3, "eta": 0.1},
+        {"num_filters": 52, "input_depth": 26, "kernel_size": 3, "eta": 0.1},
     ]
-    fully_connected = [1024, 512]
+    fully_connected = [832, 512]
 
-    nn = NeuralNetwork(input_shape, conv_layers, fully_connected, eta=0.001)
+    nn = NeuralNetwork(input_shape, conv_layers, fully_connected, eta=0.01)
 
     dataset = [
-        (np.random.rand(16, 8, 8), [1, 0, 0, 0]),  # Checkmate
-        (np.random.rand(16, 8, 8), [0, 1, 0, 0]),  # Check
-        (np.random.rand(16, 8, 8), [0, 0, 1, 0]),  # Pat
-        (np.random.rand(16, 8, 8), [0, 0, 0, 1]),  # Nothing
+        (np.random.rand(13, 8, 8), [1, 0, 0, 0]),  # Checkmate
+        (np.random.rand(13, 8, 8), [0, 1, 0, 0]),  # Check
+        (np.random.rand(13, 8, 8), [0, 0, 1, 0]),  # Pat
+        (np.random.rand(13, 8, 8), [0, 0, 0, 1]),  # Nothing
     ]
 
     epochs = 1000

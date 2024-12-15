@@ -15,7 +15,7 @@ def generate_nn(filename: str, conf: Conf_parameters) -> None:
     """
     print(f"Generating {filename}")
 
-    input_shape = (16, 8, 8)
+    input_shape = (13, 8, 8)
     nn = NeuralNetwork(input_shape, conf.conv_layers,
                        conf.fully_connected, eta=conf.eta, epoch=conf.epoch)
     try:

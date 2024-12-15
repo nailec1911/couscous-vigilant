@@ -23,8 +23,6 @@ class Board:
             setattr(self, piece, create_grid())
             self.boards.append(getattr(self, piece))
         self.boards.append(self.turn_board)
-        for _ in range(3):
-            self.boards.append(create_grid())
         self.turn: str = 'w'
         self.halfmove: int = 0
         self.fullmove: int = 0

@@ -78,6 +78,7 @@ def main_analyzer(args: argparse.Namespace) -> None:
     except Exception as err:
         raise FileNotFoundError(
             f"Neural network from file '{args.LOADFILE}' didn't load properly") from err
+    print(f"Neural network from file {args.LOADFILE} loaded.")
 
     inputs: List[Board] = []
     try:
@@ -88,6 +89,7 @@ def main_analyzer(args: argparse.Namespace) -> None:
     except Exception as err:
         raise FileNotFoundError(
             f"Inputs from '{args.FILE}' didn't load properly") from err
+    print(f"Parsing of dataset {args.FILE} done.")
 
     if args.predict:
         return predict(nn, inputs)
