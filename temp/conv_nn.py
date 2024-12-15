@@ -1,5 +1,7 @@
 import numpy as np
-from scipy.signal import correlate2d
+from numba import jit
+from numba import cuda
+from neural_network.convolve2d import convolve2d
 
 def sigmoid(x):
     return 1 / (1 + np.exp(-x))
@@ -58,7 +60,8 @@ class ConvLayer:
         self.num_filters = num_filters
         self.kernel_size = kernel_size
         self.eta = eta
-
+        self.inputs = None
+        self.outputs = None
         # He Initialization for kernels
         scale = np.sqrt(2 / (input_depth * kernel_size * kernel_size))
         self.kernels = np.random.randn(num_filters, input_depth, kernel_size, kernel_size) * scale
@@ -134,11 +137,11 @@ class ConvLayer:
 class Perceptron:
     def __init__(self, input_nbr, eta=0.01):
         self.eta = eta
-        
+
         # He Initialization for weights
         scale = np.sqrt(2 / input_nbr)
         self.weights = np.random.randn(input_nbr) * scale
-        
+
         # Bias initialized to a small random value
         self.bias = np.random.rand() * 0.01
 
@@ -169,7 +172,7 @@ class Layer:
         return new_deltas
 
 class NeuralNetwork:
-    def __init__(self, input_shape, conv_layers, fully_connected, eta=0.01):
+    def __init__(self, input_shape, conv_layers, fully_connected, eta=0.01, epoch=1):
         # for now the four outputs are hard coded.
         # it is possible to let the user choose but idk if it is logic
         self.conv_layers = [ConvLayer(**params) for params in conv_layers]
@@ -178,6 +181,7 @@ class NeuralNetwork:
             for size, prev_size in zip(fully_connected[1:], fully_connected[:-1])
         ]
         self.output_layer = Layer(4, fully_connected[-1], eta)
+        self.epoch = epoch
 
     def forward(self, inputs):
         for layer in self.conv_layers:
