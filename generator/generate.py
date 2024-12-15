@@ -1,9 +1,10 @@
 """generate a neural network
 """
 from sys import stderr
-from generator.config_parsing import Config, Conf_parameters
-from neural_network.neural_network import NeuralNetwork
 from pickle import dump
+from generator.config_parsing import Config, Conf_parameters
+from neural_network.conv_nn import NeuralNetwork
+# from neural_network.neural_network import NeuralNetwork
 
 
 def generate_nn(filename: str, conf: Conf_parameters) -> None:
@@ -14,7 +15,9 @@ def generate_nn(filename: str, conf: Conf_parameters) -> None:
     """
     print(f"Generating {filename}")
 
-    nn = NeuralNetwork(conf.layers, conf.epoch, conf.eta)
+    input_shape = (16, 8, 8)
+    nn = NeuralNetwork(input_shape, conf.conv_layers,
+                       conf.fully_connected, eta=conf.eta, epoch=conf.epoch)
     try:
         with open(filename, 'wb') as file:
             dump(nn, file)

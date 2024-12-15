@@ -1,4 +1,9 @@
-# shape of the nn (list of number of nodes for each layers)
-layers=[3, 5, 8, 3, 2]
-eta=<float>
-epochs=<int>
+{
+    "conv_layers": [
+        {"num_filters": 32, "input_depth": 16, "kernel_size": 3, "eta": 0.01},
+        {"num_filters": 64, "input_depth": 32, "kernel_size": 3, "eta": 0.01}
+    ],
+    "fully_connected": [1024, 512],
+    "eta": 0.01,
+    "epoch": 12,
+}

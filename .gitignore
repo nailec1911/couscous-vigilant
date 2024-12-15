@@ -3,6 +3,7 @@ my_torch_analyzer
 typer
 *.nn
 *.conf
+datasets/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -1,6 +1,7 @@
 """ Parsing of the fen boards
 """
 from typing import List
+import numpy as np
 
 
 class Board:
@@ -9,17 +10,21 @@ class Board:
 
     def __init__(self, fen: str, training: bool = False):
         self.fen: str = fen
-        self.expected: str = ""
+        self.expected: np.ndarray = np.array([0, 0, 0, 0], dtype=int)
         self.pieces_list = ["p", "r", "n", "b",
                             "q", "k", "P", "R", "N", "B", "Q", "K"]
 
-        def create_grid() -> List[List[bool]]:
-            return [[False for _ in range(8)] for _ in range(8)]
+        def create_grid() -> List[np.ndarray]:
+            return np.zeros((8, 8), dtype=float)
 
+        self.turn_board = create_grid()
         self.boards: List[List[List[bool]]] = []
         for piece in self.pieces_list:
             setattr(self, piece, create_grid())
             self.boards.append(getattr(self, piece))
+        self.boards.append(self.turn_board)
+        for _ in range(3):
+            self.boards.append(create_grid())
         self.turn: str = 'w'
         self.halfmove: int = 0
         self.fullmove: int = 0
@@ -30,6 +35,8 @@ class Board:
         if len(turn) != 0 and not turn in "wb":
             raise ValueError(f"The player turn {turn} is invalid")
         self.turn = turn
+        if turn == 'b':
+            self.turn_board[:, :] = 1
         # TODO self.rock = (False, False)
         # TODO self.enpassant = False
         try:
@@ -57,6 +64,17 @@ class Board:
                 getattr(self, piece)[i][j] = True
                 j += 1
 
+    def __parse_expected(self, expected: List[str]):
+        expected = ' '.join(expected)
+        if expected[:9] == "Checkmate":
+            self.expected[0] = 1
+        if expected[:6] == "Check ":
+            self.expected[1] = 1
+        if expected[:9] == "Stalemate":
+            self.expected[2] = 1
+        if expected[:7] == "Nothing":
+            self.expected[3] = 1
+
     def __check_boards(self):
         # TODO check that the number of pieces is ok and that there aren't two pieces on the same line
         pass
@@ -69,10 +87,7 @@ class Board:
         self.__parse_infos(*splitted[1:6])
         self.__check_boards()
         if training:
-            if len(splitted) == 7:
-                self.expected = splitted[6]
-            if len(splitted) == 8:
-                self.expected = splitted[6] + ' ' + splitted[7]
+            self.__parse_expected(splitted[6:])
 
     def __repr__(self):
         res = ""
@@ -87,11 +102,11 @@ class Board:
 
 if __name__ == "__main__":
     boards = [
-        "rnb1kbnr/pppp1ppp/8/4p3/6Pq/5P2/PPPPP2P/RNBQKBNR w KQkq - 1 3 nothing",
-        "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 stale",
-        "rnbqkbnr/pppppppp/8/8/3P4/8/PPP1PPPP/RNBQKBNR b KQkq d3 0 1 check white",
-        "rnbqkbnr/pppp2pp/8/4pp1Q/3P4/4P3/PPP2PPP/RNB1KBNR b KQkq - 1 3 nothing",
-        "8/8/8/8/8/8/8/k1K5 w - - 0 1 stalemate",
+        "rnb1kbnr/pppp1ppp/8/4p3/6Pq/5P2/PPPPP2P/RNBQKBNR w KQkq - 1 3 Nothing",
+        "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 Stalemate",
+        "rnbqkbnr/pppppppp/8/8/3P4/8/PPP1PPPP/RNBQKBNR b KQkq d3 0 1 Check white",
+        "rnbqkbnr/pppp2pp/8/4pp1Q/3P4/4P3/PPP2PPP/RNB1KBNR b KQkq - 1 3 Nothing",
+        "8/8/8/8/8/8/8/k1K5 w - - 0 1 Checkmate Black",
     ]
     for e in boards:
         a = Board(e, True)
